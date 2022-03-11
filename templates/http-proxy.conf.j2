@@ -1,0 +1,7 @@
+[Service]
+{% if docker_proxy.http_proxy | default(none) is not none %}
+Environment="HTTP_PROXY={{ docker_proxy.http_proxy }}"
+{% endif %}
+{% if docker_proxy.htts_proxy | default(none) is not none %}
+Environment="HTTPS_PROXY={{ docker_proxy.htts_proxy }}"
+{% endif %}

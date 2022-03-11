@@ -1,0 +1,66 @@
+- name: Update APT Cache
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
+  tags:
+    - install
+
+- name: Install Required Packages
+  apt:
+    name: "{{ item.name }}"
+    state: "{{ item.state | default(omit) }}"
+  loop:
+    - name: python3
+      state: present
+    - name: python3-pip
+      state: present
+    - name: docker.io
+      state: present
+  loop_control:
+    label: "{{ item.name }} ({{ item.state | default('present') }})"
+  tags:
+    - install
+
+- name: Enable and Start Docker
+  systemd:
+    name: docker
+    state: started
+    enabled: true
+  tags:
+    - install
+
+- name: Template Docker Daemon.json
+  copy:
+    content: "{{ docker_daemon_conf | to_nice_json }}"
+    dest: "{{ docker_daemon_config_path | default('/etc/docker/daemon.json') }}"
+  when:
+    - docker_daemon_conf is defined and docker_daemon_conf is mapping
+  notify: docker-restart
+
+- name: Create Directory for Proxy Config File
+  ansible.builtin.file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    recurse: true
+  when:
+    - docker_proxy | default(none) is not none
+
+- name: Setup HTTP/S Proxy for Docker
+  ansible.builtin.template:
+    src: http-proxy.conf.j2
+    dest: /etc/systemd/system/docker.service.d/http-proxy.conf
+  when:  
+    - docker_proxy | default(none) is not none
+  notify: docker-restart
+
+- name: Install Required Python Libraries
+  pip:
+    name: "{{ item.name }}"
+    state: "{{ item.state | default(omit) }}"
+    executable: pip3
+  loop:
+    - name: docker
+    - name: pyyaml
+    - name: jsondiff
+  loop_control:
+    label: "{{ item.name }} ({{ item.state | default('present') }})"
