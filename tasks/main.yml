@@ -1,1 +1,99 @@
----
+- name: Install
+  ansible.builtin.include_tasks: 
+    file: install.yml
+    apply:
+      tags:
+        - install
+  tags: 
+    - install
+
+- name: Set Docker Socket Options
+  ansible.builtin.set_fact:
+    docker_socket_options: &docker_socket_options
+      docker_host: "{{ docker_conn_opts.docker_host | default(omit) }}"
+      tls_hostname: "{{ docker_conn_opts.tls_hostname | default(omit) }}"
+
+- name: Create Volume Folders
+  ansible.builtin.file: 
+    path: "{{ item.path }}"
+    state: "{{ item.path_opts.state | default('directory') }}"
+    recurse: "{{ item.path_opts.state | default('directory') == 'directory' | bool }}"
+    owner: "{{ item.path_opts.owner | default(omit) }}"
+    group: "{{ item.path_opts.group | default(omit) }}"
+    mode: "{{ item.path_opts.mode | default(omit) }}"
+  loop: "{{ docker_volumes }}"
+  loop_control:
+    label: "{{ item.name }} - {{ item.path }}"
+  when: 
+    - docker_volumes is defined
+    - item.path is defined
+  tags:
+    - folders
+
+- name: Configure Docker Volumes
+  community.docker.docker_volume:
+    <<: *docker_socket_options
+    name: "{{ item.name }}" 
+    driver: "{{ item.driver }}"
+    driver_options: "{{ item.driver_options }}"
+    state: "{{ item.state }}" 
+  loop: "{{ docker_volumes }}"
+  loop_control:
+    label: "Name: {{ item.name }} - State: {{ item.state | default('default') }}"
+  when:
+    - docker_volumes is defined
+  tags:
+    - volumes
+
+- name: Setup Networks
+  community.docker.docker_network:
+    <<: *docker_socket_options
+    name: "{{ item.name }}"
+    driver: "{{ item.driver }}"
+    ipam_config: "{{ item.ipam_config | default(omit) }}"
+    driver_options: "{{ item.driver_options | default(omit) }}"
+    attachable: "{{ item.attachable }}"
+    scope: "{{ item.scope | default(omit) }}"
+    enable_ipv6: false
+    state: "{{ item.state }}"
+    force: "{{ FORCE_NET | default(false) | bool }}"
+  loop: "{{ docker_networks | default([]) }}"
+  loop_control:
+    label: "Name: {{ item.name }} - State: {{ item.state | default('default') }}"
+  tags: 
+    - networks
+
+
+- name: Setup Docker Containers
+  community.docker.docker_container:
+    <<: *docker_socket_options
+    name: "{{ item.name }}"
+    hostname: "{{ item.hostname | default(item.name) }}"
+    image: "{{ item.image }}"
+    user: "{{ item.user | default(omit) }}"
+    groups: "{{ item.groups | default(omit) }}"
+    command: "{{ item.command | default(omit) }}"
+    env: "{{ item.env | default(omit) }}"
+    memory: "{{ item.memory | default(omit) }}"
+    memory_reservation: "{{ item.memory_reservation | default(omit) }}"
+    ulimits: "{{ item.ulimits | default(omit) }}"
+    capabilities: "{{ item.capabilities | default(omit) }}"
+    ports: "{{ item.ports | default(omit) }}"
+    mounts: "{{ item.mounts | default(omit) }}"
+    networks: "{{ item.networks | default(omit)}}"
+    network_mode: "{{ item.network_mode | default(omit) }}"
+    dns_servers: "{{ item.dns_servers | default(omit) }}"
+    dns_search_domains: "{{ item.dns_search_domains | default(omit) }}"
+    restart_policy: "{{ item.restart_policy | default(omit) }}"
+    state: "{{ item.state | default(omit) }}"
+    recreate: "{{ RECREATE | default(false) | bool }}"
+    networks_cli_compatible: true
+    container_default_behavior: 'no_defaults'
+  loop: "{{ docker_containers }}"
+  loop_control:
+    label: "Name: {{ item.name }} - State: {{ item.state | default('default') }}"
+  register: debug
+  when:
+    - docker_containers is defined
+  tags: 
+    - containers
