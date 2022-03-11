@@ -71,6 +71,7 @@
     hostname: "{{ item.hostname | default(item.name) }}"
     image: "{{ item.image }}"
     user: "{{ item.user | default(omit) }}"
+    privileged: "{{ item.privileged | default(omit) }}"
     groups: "{{ item.groups | default(omit) }}"
     command: "{{ item.command | default(omit) }}"
     env: "{{ item.env | default(omit) }}"
