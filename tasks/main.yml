@@ -79,6 +79,7 @@
     env: "{{ item.env | default(omit) }}"
     memory: "{{ item.memory | default(omit) }}"
     memory_reservation: "{{ item.memory_reservation | default(omit) }}"
+    shm_size: "{{ item.shm_size | default(omit) }}"
     ulimits: "{{ item.ulimits | default(omit) }}"
     capabilities: "{{ item.capabilities | default(omit) }}"
     ports: "{{ item.ports | default(omit) }}"
